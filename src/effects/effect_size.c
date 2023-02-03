@@ -9,8 +9,6 @@
 #include "../query_ctx.h"
 #include "../undo_log/undo_log.h"
 
-#include <struct.h>
-
 static size_t ComputeCreateNodeSize
 (
 	const UndoOp *op

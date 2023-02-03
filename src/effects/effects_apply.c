@@ -9,7 +9,6 @@
 #include "../graph/graph_hub.h"
 
 #include <stdio.h>
-#include <struct.h>
 
 // read effect type from stream
 static EffectType ReadEffectType

@@ -9,6 +9,10 @@
 #include "../undo_log/undo_log.h"
 #include "../graph/graphcontext.h"
 
+// size of the field in the structure
+#define	fldsiz(name, field) \
+	(sizeof(((struct name *)0)->field))
+
 // types of effects
 typedef enum {
 	EFFECT_UNKNOWN = 0,    // unknown effect

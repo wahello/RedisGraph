@@ -10,6 +10,8 @@
 #include "../../value.h"
 #include "graph_entity.h"
 
+typedef int RelationID;
+
 #define EDGE_LENGTH_INF UINT_MAX - 2
 
 // instantiate a new unpopulated edge
@@ -52,13 +54,13 @@ __extension__({                                                                 
  * if we set src and srcNodeID to different nodes. */
 struct Edge {
 	AttributeSet *attributes;   // MUST be the first member
-	EntityID id;                // Unique id, MUST be the second member
-	const char *relationship;   // Label attached to edge
-	int relationID;             // Relation ID
-	Node *src;                  // Pointer to source node
-	Node *dest;                 // Pointer to destination node
-	NodeID srcNodeID;           // Source node ID
-	NodeID destNodeID;          // Destination node ID
+	EntityID id;                // unique id, MUST be the second member
+	const char *relationship;   // relation attached to edge
+	RelationID relationID;      // relation ID
+	Node *src;                  // pointer to source node
+	Node *dest;                 // pointer to destination node
+	NodeID srcNodeID;           // source node ID
+	NodeID destNodeID;          // destination node ID
 };
 
 typedef struct Edge Edge;
@@ -76,7 +78,7 @@ NodeID Edge_GetDestNodeID
 );
 
 // retrieve edge relation ID
-int Edge_GetRelationID
+RelationID Edge_GetRelationID
 (
 	const Edge *edge
 );
@@ -111,7 +113,7 @@ void Edge_SetDestNode
 void Edge_SetRelationID
 (
 	Edge *e,
-	int relationID
+	RelationID r
 );
 
 // constructs a string representation of edge
@@ -129,3 +131,4 @@ void Edge_Free
 (
 	Edge *edge
 );
+

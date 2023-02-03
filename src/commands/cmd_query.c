@@ -14,6 +14,7 @@
 #include "../graph/graph.h"
 #include "../index/indexer.h"
 #include "../util/rmalloc.h"
+#include "../effects/effects.h"
 #include "../util/cache/cache.h"
 #include "../util/thpool/pools.h"
 #include "../execution_plan/execution_plan.h"
@@ -337,11 +338,23 @@ static void _ExecuteQuery(void *args) {
 		UndoLog_Rollback(query_ctx->undo_log);
 		// clear resultset statistics, avoiding commnad being replicated
 		ResultSet_Clear(result_set);
-	}
-	
-	// replicate command if graph was modified
-	if(ResultSetStat_IndicateModification(&result_set->stats)) {
-		QueryCtx_Replicate(query_ctx);
+	} else {
+		// replicate command if graph was modified
+		if(ResultSetStat_IndicateModification(&result_set->stats)) {
+			// produce effects buffer
+			size_t effects_len = 0;
+			u_char *effects = Effects_FromUndoLog(query_ctx->undo_log,
+					&effects_len);
+			if(effects != NULL) {
+				// replicate effects
+				RedisModule_Replicate(rm_ctx, "GRAPH.EFFECT", "cb!",
+						gc->graph_name, effects, effects_len);
+
+				rm_free(effects);
+			} else {
+				QueryCtx_Replicate(query_ctx);
+			}
+		}
 	}
 	
 	QueryCtx_UnlockCommit();

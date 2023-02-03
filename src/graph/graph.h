@@ -119,16 +119,16 @@ Graph *Graph_New
 );
 
 // creates a new label matrix, returns id given to label
-int Graph_AddLabel
+LabelID Graph_AddLabel
 (
 	Graph *g
 );
 
-// adds a label from the graph
+// removes a label from the graph
 void Graph_RemoveLabel
 (
 	Graph *g,
-	int label_id
+	LabelID label_id
 );
 
 // label node with each label in 'lbls'
@@ -158,7 +158,7 @@ bool Graph_IsNodeLabeled
 );
 
 // creates a new relation matrix, returns id given to relation
-int Graph_AddRelationType
+RelationID Graph_AddRelationType
 (
 	Graph *g
 );
@@ -167,7 +167,7 @@ int Graph_AddRelationType
 void Graph_RemoveRelation
 (
 	Graph *g,
-	int relation_id
+	RelationID relation_id
 );
 
 // make sure graph can hold an additional N nodes
@@ -198,10 +198,10 @@ void Graph_CreateNode
 // returns 1 if connection is formed, 0 otherwise
 void Graph_CreateEdge
 (
-	Graph *g,           // graph on which to operate
-	NodeID src,         // source node ID
-	NodeID dest,        // destination node ID
-	int r,              // edge type
+	Graph *g,      // graph on which to operate
+	NodeID src,    // source node ID
+	NodeID dest,   // destination node ID
+	RelationID r,  // edge type
 	Edge *e
 );
 
@@ -215,8 +215,9 @@ void Graph_DeleteNode
 // removes edges from Graph and updates graph relevent matrices
 int Graph_DeleteEdges
 (
-	Graph *g,
-	Edge *edges
+	Graph *g,     // graph
+	Edge *edges,  // array of edges to delete
+	uint64_t n    // number of edges to delete
 );
 
 // update entity attribute with new value
@@ -277,7 +278,7 @@ size_t Graph_UncompactedNodeCount
 uint64_t Graph_LabeledNodeCount
 (
 	const Graph *g,
-	int label
+	LabelID label
 );
 
 // returns number of edges in the graph
@@ -290,7 +291,7 @@ size_t Graph_EdgeCount
 uint64_t Graph_RelationEdgeCount
 (
 	const Graph *g,
-	int relation_idx
+	RelationID relation
 );
 
 // returns number of deleted edges in the graph
@@ -315,9 +316,9 @@ int Graph_LabelTypeCount
 // false otherwise
 bool Graph_RelationshipContainsMultiEdge
 (
-	const Graph *g, // Graph containing matrix to inspect
-	int r,          // Relationship ID
-	bool transpose  // false for R, true for transpose R
+	const Graph *g,  // Graph containing matrix to inspect
+	RelationID r,    // Relationship ID
+	bool transpose   // false for R, true for transpose R
 );
 
 // retrieves node with given id from graph,
@@ -340,7 +341,7 @@ int Graph_GetEdge
 
 // retrieves edge relation type
 // returns GRAPH_NO_RELATION if edge has no relation type
-int Graph_GetEdgeRelation
+RelationID Graph_GetEdgeRelation
 (
 	const Graph *g,
 	Edge *e
@@ -351,21 +352,21 @@ int Graph_GetEdgeRelation
 // about edge type
 void Graph_GetEdgesConnectingNodes
 (
-	const Graph *g,     // Graph to get edges from.
-	NodeID srcID,       // Source node of edge
-	NodeID destID,      // Destination node of edge
-	int r,              // Edge type.
-	Edge **edges        // array_t of edges connecting src to dest of type r.
+	const Graph *g,  // graph to get edges from
+	NodeID srcID,    // source node of edge
+	NodeID destID,   // destination node of edge
+	RelationID r,    // edge type
+	Edge **edges     // array_t of edges connecting src to dest of type r
 );
 
 // get node edges
 void Graph_GetNodeEdges
 (
-	const Graph *g,         // graph to get edges from
-	const Node *n,          // node to extract edges from
-	GRAPH_EDGE_DIR dir,     // edge direction
-	int edgeType,           // relation type
-	Edge **edges            // array_t incoming/outgoing edges
+	const Graph *g,       // graph to get edges from
+	const Node *n,        // node to extract edges from
+	GRAPH_EDGE_DIR dir,   // edge direction
+	RelationID edgeType,  // relation type
+	Edge **edges          // array_t incoming/outgoing edges
 );
 
 // returns node incoming/outgoing degree
@@ -374,7 +375,7 @@ uint64_t Graph_GetNodeDegree
 	const Graph *g,      // graph to inquery
 	const Node *n,       // node to get degree of
 	GRAPH_EDGE_DIR dir,  // incoming/outgoing/both
-	int edgeType         // relation type
+	RelationID edgeType  // relation type
 );
 
 // populate array of node's label IDs, return number of labels on node.
@@ -398,16 +399,16 @@ RG_Matrix Graph_GetAdjacencyMatrix
 // matrix is resized if its size doesn't match graph's node count
 RG_Matrix Graph_GetLabelMatrix
 (
-	const Graph *g,     // graph from which to get adjacency matrix
-	int label           // label described by matrix
+	const Graph *g,  // graph from which to get adjacency matrix
+	LabelID label    // label described by matrix
 );
 
 // retrieves a typed adjacency matrix
 // matrix is resized if its size doesn't match graph's node count
 RG_Matrix Graph_GetRelationMatrix
 (
-	const Graph *g,     // graph from which to get adjacency matrix
-	int relation,       // relation described by matrix
+	const Graph *g,       // graph from which to get adjacency matrix
+	RelationID relation,  // relation described by matrix
 	bool transposed
 );
 
@@ -426,12 +427,6 @@ RG_Matrix Graph_GetZeroMatrix
 	const Graph *g
 );
 
-RG_Matrix Graph_GetLabelRGMatrix
-(
-	const Graph *g,
-	int label_idx
-);
-
 // free partial graph
 void Graph_PartialFree
 (
@@ -443,3 +438,4 @@ void Graph_Free
 (
 	Graph *g
 );
+

@@ -106,11 +106,11 @@ static void _DeleteEntities
 		// required as a deleted node must be detached
 
 		// delete edges
-		edge_deleted += DeleteEdges(op->gc, distinct_edges);
+		edge_deleted += DeleteEdges(op->gc, distinct_edges, edge_count, true);
 
 		// delete nodes
 		for(uint i = 0; i < node_count; i++) {
-			node_deleted += DeleteNode(op->gc, distinct_nodes + i);
+			node_deleted += DeleteNode(op->gc, distinct_nodes + i, true);
 		}
 
 		// stats must be updated under lock due to for replication

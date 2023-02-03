@@ -28,7 +28,7 @@ NodeID Edge_GetDestNodeID
 	return edge->destNodeID;
 }
 
-int Edge_GetRelationID
+RelationID Edge_GetRelationID
 (
 	const Edge *edge
 ) {
@@ -75,10 +75,10 @@ void Edge_SetDestNode
 void Edge_SetRelationID
 (
 	Edge *e,
-	int relationID
+	RelationID r
 ) {
 	ASSERT(e);
-	e->relationID = relationID;
+	e->relationID = r;
 }
 
 void Edge_ToString

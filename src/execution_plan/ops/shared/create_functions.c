@@ -37,7 +37,7 @@ static void _CommitNodesBlueprint
 			Schema *s = GraphContext_GetSchema(gc, label, SCHEMA_NODE);
 
 			if(s == NULL) {
-				s = AddSchema(gc, label, SCHEMA_NODE);
+				s = AddSchema(gc, label, SCHEMA_NODE, true);
 				pending->stats->labels_added++;
 			}
 
@@ -73,7 +73,7 @@ static void _CommitNodes
 
 		// introduce node into graph
 		pending->stats->properties_set += CreateNode(gc, n, labels, label_count,
-				attr);
+				attr, true);
 	}
 }
 
@@ -98,7 +98,9 @@ static void _CommitEdgesBlueprint
 
 		const char *relation = edge_ctx->relation;
 		Schema *s = GraphContext_GetSchema(gc, relation, SCHEMA_EDGE);
-		if(s == NULL) s = AddSchema(gc, relation, SCHEMA_EDGE);
+		if(s == NULL) {
+			s = AddSchema(gc, relation, SCHEMA_EDGE, true);
+		}
 
 		// calling Graph_GetRelationMatrix will make sure relationship matrix
 		// is of the right dimensions
@@ -144,7 +146,7 @@ static void _CommitEdges
 		int relation_id = Schema_GetID(s);
 
 		pending->stats->properties_set += CreateEdge(gc, e, srcNodeID,
-				destNodeID, relation_id, attr);
+				destNodeID, relation_id, attr, true);
 	}
 }
 
@@ -273,7 +275,7 @@ void ConvertPropertyMap
 		}
 
 		// set the converted attribute
-		Attribute_ID attribute_id = FindOrAddAttribute(gc, map->keys[i]);
+		Attribute_ID attribute_id = FindOrAddAttribute(gc, map->keys[i], true);
 		AttributeSet_Add(attributes, attribute_id, val);
 		SIValue_Free(val);
 	}

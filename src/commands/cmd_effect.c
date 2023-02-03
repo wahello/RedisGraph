@@ -6,7 +6,6 @@
 
 #include "RG.h"
 #include "../effects/effects.h"
-#include "../util/simple_timer.h"
 #include "../graph/graphcontext.h"
 
 // GRAPH.EFFECT command handler
@@ -16,10 +15,6 @@ int Graph_Effect
 	RedisModuleString **argv,  // command arguments
 	int argc                   // number of arguments
 ) {
-	// TODO: remove timmer
-	double tic[2];
-	simple_tic(tic);
-
 	// GRAPH.EFFECT <key> <effects>
 	if(argc != 3) {
 		return RedisModule_WrongArity(ctx);
@@ -41,9 +36,6 @@ int Graph_Effect
 
 	// release GraphContext
 	GraphContext_DecreaseRefCount(gc);
-
-	// DEBUG report time
-	printf("effect execution time: %f milliseconds\n", simple_toc(tic) * 1000);
 
 	return REDISMODULE_OK;
 }

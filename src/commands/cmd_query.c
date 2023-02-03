@@ -17,6 +17,7 @@
 #include "../effects/effects.h"
 #include "../util/cache/cache.h"
 #include "../util/thpool/pools.h"
+#include "../configuration/config.h"
 #include "../execution_plan/execution_plan.h"
 #include "execution_ctx.h"
 
@@ -336,22 +337,28 @@ static void _ExecuteQuery(void *args) {
 	// in case of an error, rollback any modifications
 	if(ErrorCtx_EncounteredError()) {
 		UndoLog_Rollback(query_ctx->undo_log);
-		// clear resultset statistics, avoiding commnad being replicated
+		// clear resultset statistics
 		ResultSet_Clear(result_set);
 	} else {
-		// replicate command if graph was modified
+		// replicate if graph was modified
 		if(ResultSetStat_IndicateModification(&result_set->stats)) {
-			// produce effects buffer
-			size_t effects_len = 0;
-			u_char *effects = Effects_FromUndoLog(query_ctx->undo_log,
-					&effects_len);
-			if(effects != NULL) {
+			// should we replicate using effects ?
+			bool replicate_effects;
+			Config_Option_get(Config_REPLICATE_EFFECTS, &replicate_effects);
+			if(replicate_effects == true) {
+				// compute effects buffer
+				size_t effects_len = 0;
+				u_char *effects = Effects_FromUndoLog(query_ctx->undo_log,
+						&effects_len);
+				ASSERT(effects != NULL && effects_len > 0);
+
 				// replicate effects
 				RedisModule_Replicate(rm_ctx, "GRAPH.EFFECT", "cb!",
 						gc->graph_name, effects, effects_len);
 
 				rm_free(effects);
 			} else {
+				// replicate original query
 				QueryCtx_Replicate(query_ctx);
 			}
 		}

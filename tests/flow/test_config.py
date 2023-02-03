@@ -24,8 +24,8 @@ class testConfig(FlowTestsBase):
         # Try reading all configurations
         config_name = "*"
         response = redis_con.execute_command("GRAPH.CONFIG GET " + config_name)
-        # 12 configurations should be reported
-        self.env.assertEquals(len(response), 13)
+        # 14 configurations should be reported
+        self.env.assertEquals(len(response), 14)
 
     def test02_config_get_invalid_name(self):
         global redis_graph

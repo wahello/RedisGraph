@@ -55,7 +55,8 @@ void AttributeSet_AddNoClone
 	AttributeSet *set,  // set to update
 	Attribute_ID *ids,  // identifiers
 	SIValue *values,    // values
-	ushort n            // number of values to add
+	ushort n,           // number of values to add
+	bool allowNull		// accept NULLs
 );
 
 // adds an attribute to the set (clones the value)

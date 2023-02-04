@@ -53,7 +53,7 @@ static AttributeSet ReadAttributeSet
 	}
 
 	AttributeSet attr_set = NULL;
-	AttributeSet_AddNoClone(&attr_set, ids, values, attr_count);
+	AttributeSet_AddNoClone(&attr_set, ids, values, attr_count, false);
 
 	return attr_set;
 }
@@ -352,7 +352,7 @@ static void ApplyUpdate
 
 	// construct update attribute-set
 	AttributeSet set = NULL;
-	AttributeSet_Set_Allow_Null(&set, attr_id, v);
+	AttributeSet_AddNoClone(&set, &attr_id, &v, 1, true);
 
 	// perform update
 	UpdateEntityProperties(gc, &ge, set, t, &props_set, &props_removed, false);

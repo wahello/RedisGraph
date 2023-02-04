@@ -140,13 +140,19 @@ void AttributeSet_AddNoClone
 	AttributeSet *set,  // set to update
 	Attribute_ID *ids,  // identifiers
 	SIValue *values,    // values
-	ushort n            // number of values to add
+	ushort n,           // number of values to add
+	bool allowNull		// accept NULLs
 ) {
 	// validate value type
 	// value must be a valid property type
 #ifdef RG_DEBUG
+	SIType t = SI_VALID_PROPERTY_VALUE;
+	if(allowNull == true) {
+		t |= T_NULL;
+	}
+
 	for(ushort i = 0; i < n; i++) {
-		ASSERT(SI_TYPE(values[i]) & SI_VALID_PROPERTY_VALUE);
+		ASSERT(SI_TYPE(values[i]) & t);
 		// make sure attribute isn't already in set
 		ASSERT(AttributeSet_Get(*set, ids[i]) == ATTRIBUTE_NOTFOUND);
 		// make sure value isn't volotile

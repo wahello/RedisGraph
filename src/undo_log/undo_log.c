@@ -110,7 +110,7 @@ static void _UndoLog_Restore_Entity_Property
 	if(old_value == ATTRIBUTE_NOTFOUND) {
 		// adding a new attribute; do nothing if its value is NULL
 		if(SI_TYPE(value) != T_NULL) {
-			AttributeSet_AddNoClone(ge->attributes, &attr_id, &value, 1);
+			AttributeSet_AddNoClone(ge->attributes, &attr_id, &value, 1, false);
 		}
 	} else {
 		// update attribute

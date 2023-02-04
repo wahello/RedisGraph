@@ -38,20 +38,22 @@ static AttributeSet ReadAttributeSet
 	// read attributes
 	//--------------------------------------------------------------------------
 
-	// TODO: introduce AttributeSet_New(count)
-	AttributeSet attr_set = NULL;
+	SIValue values[attr_count];
+	Attribute_ID ids[attr_count];
+
 	for(ushort i = 0; i < attr_count; i++) {
 		SIValue      attr_value;
 		Attribute_ID attr_id;
 
 		// read attribute ID
-		fread_assert(&attr_id, sizeof(attr_id), stream);
+		fread_assert(ids + i, sizeof(attr_id), stream);
 		
 		// read attribute value
-		attr_value = SIValue_FromBinary(stream);
-
-		AttributeSet_Add(&attr_set, attr_id, attr_value);
+		values[i] = SIValue_FromBinary(stream);
 	}
+
+	AttributeSet attr_set = NULL;
+	AttributeSet_AddNoClone(&attr_set, ids, values, attr_count);
 
 	return attr_set;
 }

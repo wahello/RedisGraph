@@ -62,6 +62,50 @@ void static inline GraphQueryCtx_Free(GraphQueryCtx *ctx) {
 	rm_free(ctx);
 }
 
+// checks if we should replicate command to replicas via
+// the original GRAPH.QUERY command
+// or via a set of effects GRAPH.EFFECT
+// we would prefer to use effects when the number of effects is relatively small
+// compared to query's execution time
+static bool _should_replicate_effects(void)
+{
+	//--------------------------------------------------------------------------
+	// consult with configuration
+	//--------------------------------------------------------------------------
+
+	bool replicate_effects;
+	Config_Option_get(Config_REPLICATE_EFFECTS, &replicate_effects);
+	if(replicate_effects == false) {
+		// effects replication disabled via configuration
+		return false;
+	}
+
+	// effects replication enabled via configuration
+	// use effects when:
+	// 1. the number of changes is small (<64)
+	// 2. the ratio between query execution time and number of changes
+	//    favours number of effects
+
+	// number of changes
+	UndoLog undolog = QueryCtx_GetUndoLog();
+	uint n = UndoLog_Length(undolog);
+
+	if(n > 2048 || n == 0) {
+		// either no changes or too many changes, do not use effects
+		return false;
+	} else if(n < 64) {
+		// small number of changes, use effects
+		return true;
+	}
+
+	// compare ratio between query execution time (ms)
+	// and number of changes
+	// (exec_time / n) > 1 when execution time is relatively larger than
+	// number of changes, in which case we want to use effects
+	double exec_time = QueryCtx_GetExecutionTime();
+	return ((exec_time / n) > 1);
+}
+
 void static abort_and_check_timeout
 (
 	GraphQueryCtx *gq_ctx,
@@ -336,19 +380,17 @@ static void _ExecuteQuery(void *args) {
 
 	// in case of an error, rollback any modifications
 	if(ErrorCtx_EncounteredError()) {
-		UndoLog_Rollback(query_ctx->undo_log);
+		UndoLog_Rollback(QueryCtx_GetUndoLog());
 		// clear resultset statistics
 		ResultSet_Clear(result_set);
 	} else {
 		// replicate if graph was modified
 		if(ResultSetStat_IndicateModification(&result_set->stats)) {
-			// should we replicate using effects ?
-			bool replicate_effects;
-			Config_Option_get(Config_REPLICATE_EFFECTS, &replicate_effects);
-			if(replicate_effects == true) {
+			// determine rather or not to replicate via effects
+			if(_should_replicate_effects()) {
 				// compute effects buffer
 				size_t effects_len = 0;
-				u_char *effects = Effects_FromUndoLog(query_ctx->undo_log,
+				u_char *effects = Effects_FromUndoLog(QueryCtx_GetUndoLog(),
 						&effects_len);
 				ASSERT(effects != NULL && effects_len > 0);
 

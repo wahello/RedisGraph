@@ -116,6 +116,13 @@ Graph *QueryCtx_GetGraph(void) {
 	return gc->g;
 }
 
+UndoLog QueryCtx_GetUndoLog(void) {
+	QueryCtx *ctx = _QueryCtx_GetCtx();
+	ASSERT(ctx != NULL);
+	ASSERT(ctx->undo_log != NULL);
+	return ctx->undo_log;
+}
+
 RedisModuleCtx *QueryCtx_GetRedisModuleCtx(void) {
 	QueryCtx *ctx = _QueryCtx_GetCtx();
 	ASSERT(ctx != NULL);

@@ -119,8 +119,8 @@ uint CreateNode
 
 	// add node creation operation to undo log
 	if(log == true) {
-		QueryCtx *query_ctx = QueryCtx_GetQueryCtx();
-		UndoLog_CreateNode(&query_ctx->undo_log, n);
+		UndoLog *undo_log = QueryCtx_GetUndoLog();
+		UndoLog_CreateNode(undo_log, n);
 	}
 
 	return ATTRIBUTE_SET_COUNT(set);
@@ -149,8 +149,8 @@ uint CreateEdge
 
 	// add edge creation operation to undo log
 	if(log == true) {
-		QueryCtx *query_ctx = QueryCtx_GetQueryCtx();
-		UndoLog_CreateEdge(&query_ctx->undo_log, e);
+		UndoLog *undo_log = QueryCtx_GetUndoLog();
+		UndoLog_CreateEdge(undo_log, e);
 	}
 
 	return ATTRIBUTE_SET_COUNT(set);
@@ -171,8 +171,8 @@ uint DeleteNode
 
 	if(log == true) {
 		// add node deletion operation to undo log	
-		QueryCtx *query_ctx = QueryCtx_GetQueryCtx();
-		UndoLog_DeleteNode(&query_ctx->undo_log, n);
+		UndoLog *undo_log = QueryCtx_GetUndoLog();
+		UndoLog_DeleteNode(undo_log, n);
 	}
 
 	if(GraphContext_HasIndices(gc)) {
@@ -200,15 +200,17 @@ int DeleteEdges
 	ASSERT(edges  != NULL);
 
 	// add edge deletion operation to undo log
-	QueryCtx *query_ctx    = QueryCtx_GetQueryCtx();
-	bool      has_indecise =  GraphContext_HasIndices(gc);
+	bool has_indecise = GraphContext_HasIndices(gc);
+	UndoLog *undo_log = (log == true) ? QueryCtx_GetUndoLog() : NULL;
 
 	for (uint i = 0; i < n; i++) {
 		if(log == true) {
-			UndoLog_DeleteEdge(&query_ctx->undo_log, edges + i);
+			// add each deleted edge to undo-log
+			UndoLog_DeleteEdge(undo_log, edges + i);
 		}
 
-		if(has_indecise) {
+		if(has_indecise == true) {
+			// remove edge from relevant indices
 			_DeleteEdgeFromIndices(gc, edges + i);
 		}
 	}
@@ -229,7 +231,8 @@ static void _Update_Entity_Property
 	uint *props_removed_count,
 	bool log
 ) {
-	QueryCtx *query_ctx = QueryCtx_GetQueryCtx();
+	UndoLog *undo_log = (log == true) ? QueryCtx_GetUndoLog() : NULL;
+
 	if(attr_id == ATTRIBUTE_ID_ALL) {
 		// we're requested to clear entitiy's attribute-set
 		// backup entity's attributes in case we'll need to roolback
@@ -239,7 +242,7 @@ static void _Update_Entity_Property
 			// add entity update operation to undo log
 			SIValue value = AttributeSet_GetIdx(set, i, &id);
 			if(log == true) {
-				UndoLog_UpdateEntity(&query_ctx->undo_log, ge, id, value,
+				UndoLog_UpdateEntity(undo_log, ge, id, value,
 						entity_type);
 			}
 		}
@@ -247,7 +250,7 @@ static void _Update_Entity_Property
 		SIValue *orig_value = GraphEntity_GetProperty(ge, attr_id);
 		// add entity update operation to undo log
 		if(log == true) {
-			UndoLog_UpdateEntity(&query_ctx->undo_log, ge, attr_id, *orig_value,
+			UndoLog_UpdateEntity(undo_log, ge, attr_id, *orig_value,
 					entity_type);
 		}
 	}
@@ -330,6 +333,8 @@ void UpdateNodeLabels
 		return;
 	}
 
+	UndoLog *undo_log = (log == true) ? QueryCtx_GetUndoLog() : NULL;
+
 	if(add_labels != NULL) {
 		uint label_count = array_len(add_labels);
 		int add_labels_ids[label_count];
@@ -349,7 +354,8 @@ void UpdateNodeLabels
 			bool node_labeled = Graph_IsNodeLabeled(gc->g, node->id, schema_id);
 
 			if(!node_labeled) {
-				// sync matrix, make sure label matrix is of the right dimensions
+				// sync matrix
+				// make sure label matrix is of the right dimensions
 				if(schema_created) {
 					RG_Matrix m = Graph_GetLabelMatrix(gc->g, schema_id);
 				}
@@ -366,8 +372,7 @@ void UpdateNodeLabels
 			// update node's labels
 			Graph_LabelNode(gc->g, node->id ,add_labels_ids, add_labels_index);
 			if(log == true) {
-				QueryCtx *query_ctx = QueryCtx_GetQueryCtx();
-				UndoLog_AddLabels(&query_ctx->undo_log, node, add_labels_ids,
+				UndoLog_AddLabels(undo_log, node, add_labels_ids,
 						add_labels_index);
 			}
 		}
@@ -399,12 +404,11 @@ void UpdateNodeLabels
 			*labels_removed_count = remove_labels_index;
 			
 			// update node's labels
-			Graph_RemoveNodeLabels(gc->g, ENTITY_GET_ID(node), remove_labels_ids,
-					remove_labels_index);
+			Graph_RemoveNodeLabels(gc->g, ENTITY_GET_ID(node),
+					remove_labels_ids, remove_labels_index);
 			if(log == true) {
-				QueryCtx *query_ctx = QueryCtx_GetQueryCtx();
-				UndoLog_RemoveLabels(&query_ctx->undo_log, node,
-						remove_labels_ids, remove_labels_index);
+				UndoLog_RemoveLabels(undo_log, node, remove_labels_ids,
+						remove_labels_index);
 			}
 		}
 	}
@@ -423,8 +427,8 @@ Schema *AddSchema
 	Schema *s = GraphContext_AddSchema(gc, label, t);
 
 	if(log == true) {
-		QueryCtx *query_ctx = QueryCtx_GetQueryCtx();
-		UndoLog_AddSchema(&query_ctx->undo_log, s->id, s->type);
+		UndoLog *undo_log = QueryCtx_GetUndoLog();
+		UndoLog_AddSchema(undo_log, s->id, s->type);
 	}
 
 	return s;
@@ -443,9 +447,9 @@ Attribute_ID FindOrAddAttribute
 	Attribute_ID attr_id = GraphContext_FindOrAddAttribute(gc, attribute, &created);
 	// In case there was an append, the latest id should be tracked
 	if(created) {
-		QueryCtx *query_ctx = QueryCtx_GetQueryCtx();
 		if(log == true) {
-			UndoLog_AddAttribute(&query_ctx->undo_log, attr_id);
+			UndoLog *undo_log = QueryCtx_GetUndoLog();
+			UndoLog_AddAttribute(undo_log, attr_id);
 		}
 	}
 	return attr_id;

@@ -87,8 +87,8 @@ static bool _should_replicate_effects(void)
 	//    favours number of effects
 
 	// number of changes
-	UndoLog undolog = QueryCtx_GetUndoLog();
-	uint n = UndoLog_Length(undolog);
+	UndoLog *undolog = QueryCtx_GetUndoLog();
+	uint n = UndoLog_Length(*undolog);
 
 	if(n > 2048 || n == 0) {
 		// either no changes or too many changes, do not use effects
@@ -380,7 +380,7 @@ static void _ExecuteQuery(void *args) {
 
 	// in case of an error, rollback any modifications
 	if(ErrorCtx_EncounteredError()) {
-		UndoLog_Rollback(QueryCtx_GetUndoLog());
+		UndoLog_Rollback(*QueryCtx_GetUndoLog());
 		// clear resultset statistics
 		ResultSet_Clear(result_set);
 	} else {
@@ -390,7 +390,7 @@ static void _ExecuteQuery(void *args) {
 			if(_should_replicate_effects()) {
 				// compute effects buffer
 				size_t effects_len = 0;
-				u_char *effects = Effects_FromUndoLog(QueryCtx_GetUndoLog(),
+				u_char *effects = Effects_FromUndoLog(*QueryCtx_GetUndoLog(),
 						&effects_len);
 				ASSERT(effects != NULL && effects_len > 0);
 

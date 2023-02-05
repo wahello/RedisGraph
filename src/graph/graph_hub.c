@@ -231,37 +231,34 @@ static void _Update_Entity_Property
 	uint *props_removed_count,
 	bool log
 ) {
-	UndoLog *undo_log = (log == true) ? QueryCtx_GetUndoLog() : NULL;
+	SIValue *old_value = GraphEntity_GetProperty(ge, attr_id);
 
-	if(attr_id == ATTRIBUTE_ID_ALL) {
-		// we're requested to clear entitiy's attribute-set
-		// backup entity's attributes in case we'll need to roolback
-		const AttributeSet set = GraphEntity_GetAttributes(ge);
-		for(int i = 0; i < ATTRIBUTE_SET_COUNT(set); i++) {
-			Attribute_ID id;
-			// add entity update operation to undo log
-			SIValue value = AttributeSet_GetIdx(set, i, &id);
-			if(log == true) {
-				UndoLog_UpdateEntity(undo_log, ge, id, value,
-						entity_type);
+	if(log == true) {
+		UndoLog *undo_log = QueryCtx_GetUndoLog();
+		if(attr_id == ATTRIBUTE_ID_ALL) {
+			// we're requested to clear entitiy's attribute-set
+			// backup entity's attributes in case we'll need to roolback
+			const AttributeSet set = GraphEntity_GetAttributes(ge);
+			for(int i = 0; i < ATTRIBUTE_SET_COUNT(set); i++) {
+				Attribute_ID id;
+				// add entity update operation to undo log
+				SIValue value = AttributeSet_GetIdx(set, i, &id);
+				UndoLog_UpdateEntity(undo_log, ge, id, value, entity_type);
 			}
-		}
-	} else {
-		SIValue *orig_value = GraphEntity_GetProperty(ge, attr_id);
-		// add entity update operation to undo log
-		if(log == true) {
-			UndoLog_UpdateEntity(undo_log, ge, attr_id, *orig_value,
+		} else {
+			// add entity update operation to undo log
+			UndoLog_UpdateEntity(undo_log, ge, attr_id, *old_value,
 					entity_type);
 		}
 	}
 
-	// update the property and set the appropriate counter.
-	SIValue *old_value = GraphEntity_GetProperty(ge, attr_id);
+	// update the property and set the appropriate counter
 	int updates = Graph_UpdateEntity(ge, attr_id, new_value, entity_type);
 
 	if(SIValue_IsNull(new_value)) {
-		// removal of an attribute. In case the attribute is not present,
-		// the update will not be counted (Graph_UpdateEntity logic).
+		// removal of an attribute
+		// in case the attribute is not present
+		// the update will not be counted (Graph_UpdateEntity logic)
 		*props_removed_count = updates;
 	} else {
 		// addition of an attribte

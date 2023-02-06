@@ -25,6 +25,7 @@ class testEffects():
 
         return self.commands.pop()
 
+    # asserts that master and replica have the same view over the graph
     def assert_graph_eq(self):
         q = "MATCH (n) RETURN n ORDER BY(n)"
         master_resultset = self.master_graph.query(q).result_set
@@ -59,8 +60,15 @@ class testEffects():
         q = "CREATE (:L)"
         self.master_graph.query(q)
 
-        # TODO: validate effect
-        effect = self.wait_for_effect()
+        self.wait_for_effect()
+
+        self.assert_graph_eq()
+
+        # introduce multiple labels
+        q = "CREATE (:X:Y)"
+        self.master_graph.query(q)
+
+        self.wait_for_effect()
 
         self.assert_graph_eq()
 
@@ -68,8 +76,7 @@ class testEffects():
         q = "CREATE ()-[:R]->()"
         self.master_graph.query(q)
 
-        # TODO: validate effect
-        effect = self.wait_for_effect()
+        self.wait_for_effect()
 
         self.assert_graph_eq()
 
@@ -89,8 +96,7 @@ class testEffects():
 
         self.master_graph.query(q)
 
-        # TODO: validate effect
-        effect = self.wait_for_effect()
+        self.wait_for_effect()
 
         self.assert_graph_eq()
 
@@ -129,8 +135,7 @@ class testEffects():
         for q in queries:
             self.master_graph.query(q)
 
-            # TODO: validate effect
-            effect = self.wait_for_effect()
+            self.wait_for_effect()
 
         self.assert_graph_eq()
 
@@ -146,14 +151,72 @@ class testEffects():
                     n.d = [[2], 1, '3'],
                     n.e = point({latitude: 41, longitude: 2}),
                     n.f=6.28,
-                    n.empty_string = Null"""
+                    n.empty_string = ''"""
 
         self.master_graph.query(q)
 
-        # TODO: validate effect
-        effect = self.wait_for_effect()
+        self.wait_for_effect()
 
         self.assert_graph_eq()
+
+        # update using map overwrite
+        q = """MATCH (n:L)
+               WITH n
+               LIMIT 1
+               SET n = {
+                a:3,
+                b:'_string_',
+                c:True,
+                d:[['3'], 2, 1],
+                e:point({latitude: 2, longitude: 41}),
+                f:2.68,
+                empty_string:''}"""
+
+        self.master_graph.query(q)
+
+        self.wait_for_effect()
+
+        self.assert_graph_eq()
+
+        # update using map addition
+        q = """MATCH (n:L)
+               WITH n
+               LIMIT 1
+               SET n += {
+                a:4,
+                b:'string_',
+                c:False,
+                d:[['1'], 3, 2.0],
+                e:point({latitude: 3, longitude: 40}),
+                f:8.26,
+                empty_string:''}"""
+
+        self.master_graph.query(q)
+
+        self.wait_for_effect()
+
+        self.assert_graph_eq()
+
+        # remove attribute
+
+        q = "MATCH (n:L) WITH n LIMIT 1 SET n.b = NULL"
+
+        self.master_graph.query(q)
+
+        self.wait_for_effect()
+
+        self.assert_graph_eq()
+
+        # remove all attributes
+
+        q = "MATCH (n:L) WITH n LIMIT 1 SET n = {}"
+
+        self.master_graph.query(q)
+
+        self.wait_for_effect()
+
+        self.assert_graph_eq()
+
 
     def test05_set_labels_effect(self):
         # test the addition of a new node label by an effect
@@ -161,8 +224,16 @@ class testEffects():
         result = self.master_graph.query(q)
         self.env.assertEquals(result.labels_added, 1)
 
-        # TODO: validate effect
-        effect = self.wait_for_effect()
+        self.wait_for_effect()
+
+        self.assert_graph_eq()
+
+        # test the addition of an existing and anew node label by an effect
+        q = """MATCH (n:A:B:C) SET n:C:D"""
+        result = self.master_graph.query(q)
+        self.env.assertEquals(result.labels_added, 1)
+
+        self.wait_for_effect()
 
         self.assert_graph_eq()
 
@@ -172,8 +243,7 @@ class testEffects():
         result = self.master_graph.query(q)
         self.env.assertEquals(result.labels_removed, 1)
 
-        # TODO: validate effect
-        effect = self.wait_for_effect()
+        self.wait_for_effect()
 
         self.assert_graph_eq()
 
@@ -197,8 +267,7 @@ class testEffects():
             result = self.master_graph.query(q)
             self.env.assertEquals(result.relationships_created, 1)
 
-            # TODO: validate effect
-            effect = self.wait_for_effect()
+            self.wait_for_effect()
 
         self.assert_graph_eq()
 
@@ -208,18 +277,59 @@ class testEffects():
         result = self.master_graph.query(q)
         self.env.assertEquals(result.relationships_deleted, 1)
 
-        # TODO: validate effect
-        effect = self.wait_for_effect()
+        self.wait_for_effect()
 
         self.assert_graph_eq()
 
     def test09_delete_node_effect(self):
         # test the deletion of a node by an effect
-        q = "MATCH (n) DELETE n"
+        # using 'n' and 'x' to try and introduce "duplicated" deletions
+        q = "MATCH (n) WITH n as n, n as x DELETE n, x"
         self.master_graph.query(q)
 
-        # TODO: validate effect
-        effect = self.wait_for_effect()
+        self.wait_for_effect()
+
+        self.assert_graph_eq()
+
+    def test10_merge_node(self):
+        # test create and update of a node by an effect
+        q = """MERGE (n:A {v:'red'})
+               ON MATCH SET n.v = 'green'
+               ON CREATE SET n.v = 'blue'"""
+        self.master_graph.query(q)
+
+        self.wait_for_effect()
+
+        self.assert_graph_eq()
+
+        # this time MERGE will match
+        q = """MERGE (n:A {v:'blue'})
+               ON MATCH SET n.v = 'green'
+               ON CREATE SET n.v = 'red'"""
+        self.master_graph.query(q)
+
+        self.wait_for_effect()
+
+        self.assert_graph_eq()
+
+    def test11_merge_edge(self):
+        # test create and update of an edge by an effect
+        q = """MERGE (n:A {v:'red'}) MERGE (n)-[e:R{v:'red'}]->(n)
+               ON MATCH SET e.v = 'green'
+               ON CREATE SET e.v = 'blue'"""
+        self.master_graph.query(q)
+
+        self.wait_for_effect()
+
+        self.assert_graph_eq()
+
+        # this time MERGE will match
+        q = """MERGE (n:A {v:'red'}) MERGE (n)-[e:R{v:'blue'}]->(n)
+               ON MATCH SET e.v = 'green'
+               ON CREATE SET e.v = 'red'"""
+        self.master_graph.query(q)
+
+        self.wait_for_effect()
 
         self.assert_graph_eq()
 

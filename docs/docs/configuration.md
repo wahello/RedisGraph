@@ -64,6 +64,7 @@ The following table summarizes which configuration parameters can be set at modu
 | [RESULTSET_SIZE](#resultset_size)                            | :white_check_mark: | :white_check_mark:   |
 | [QUERY_MEM_CAPACITY](#query_mem_capacity)                    | :white_check_mark: | :white_check_mark:   |
 | [VKEY_MAX_ENTITY_COUNT](#vkey_max_entity_count)              | :white_check_mark: | :white_check_mark:   |
+| [REPLICATE_EFFECTS](#replicate_effects)                      | :white_check_mark: | :white_check_mark:   |
 
 ---
 
@@ -284,6 +285,27 @@ This configuration can be set when the module loads or at runtime.
 #### Default
 
 `VKEY_MAX_ENTITY_COUNT` is 100,000.
+
+---
+
+### REPLICATE_EFFECTS
+
+Controls rather or not replication between a primary and its replica(s) will be via
+the submittion of effects (when enabled)
+or via the submittion of the original query.
+
+Note: if AOF persistence is setup and REPLICATE_EFFECTS is enabled
+effects will be written into the AOF instead of the original queries
+
+#### Default
+
+`REPLICATE_EFFECTS` is enabled
+
+#### Example
+
+```
+$ redis-cli GRAPH.CONFIG SET REPLICATE_EFFECTS yes
+```
 
 ---
 

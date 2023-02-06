@@ -302,10 +302,12 @@ void UpdateEntityProperties
 		removed_props += _removed_props;
 	}
 
-	if(entity_type == GETYPE_NODE) {
-		_AddNodeToIndices(gc, (Node *)ge);
-	} else {
-		_AddEdgeToIndices(gc, (Edge *)ge);
+	if(set_props + removed_props > 0) {
+		if(entity_type == GETYPE_NODE) {
+			_AddNodeToIndices(gc, (Node *)ge);
+		} else {
+			_AddEdgeToIndices(gc, (Edge *)ge);
+		}
 	}
 
 	*props_set_count = set_props;
@@ -442,7 +444,7 @@ Attribute_ID FindOrAddAttribute
 
 	bool created;
 	Attribute_ID attr_id = GraphContext_FindOrAddAttribute(gc, attribute, &created);
-	// In case there was an append, the latest id should be tracked
+	// in case there was an append, the latest id should be tracked
 	if(created) {
 		if(log == true) {
 			UndoLog *undo_log = QueryCtx_GetUndoLog();

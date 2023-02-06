@@ -223,6 +223,17 @@ XXH32_hash_t GraphContext_GetVersion(const GraphContext *gc) {
 	return gc->version;
 }
 
+// get graph object
+Graph *GraphContext_GetGraph
+(
+	const GraphContext *gc  // graph context
+) {
+	ASSERT(gc != NULL);
+	ASSERT(gc->g != NULL);
+
+	return gc->g;
+}
+
 // Update graph context version
 static void _GraphContext_UpdateVersion(GraphContext *gc, const char *str) {
 	ASSERT(gc != NULL);

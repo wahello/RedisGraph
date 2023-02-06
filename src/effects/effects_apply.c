@@ -42,11 +42,8 @@ static AttributeSet ReadAttributeSet
 	Attribute_ID ids[attr_count];
 
 	for(ushort i = 0; i < attr_count; i++) {
-		SIValue      attr_value;
-		Attribute_ID attr_id;
-
 		// read attribute ID
-		fread_assert(ids + i, sizeof(attr_id), stream);
+		fread_assert(ids + i, sizeof(Attribute_ID), stream);
 		
 		// read attribute value
 		values[i] = SIValue_FromBinary(stream);
@@ -338,12 +335,16 @@ static void ApplyUpdate
 	// fetch updated entity
 	//--------------------------------------------------------------------------
 
-	int res;
-	GraphEntity ge;
+	Node        n;
+	Edge        e;
+	int         res;
+	GraphEntity *ge;
 	if(t == GETYPE_NODE) {
-		res = Graph_GetNode(g, id, (Node*)&ge);
+		res = Graph_GetNode(g, id, &n);
+		ge = (GraphEntity*)&n;
 	} else {
-		res = Graph_GetEdge(g, id, (Edge*)&ge);
+		res = Graph_GetEdge(g, id, &e);
+		ge = (GraphEntity*)&e;
 	}
 
 	// make sure entity was found
@@ -355,8 +356,7 @@ static void ApplyUpdate
 	AttributeSet_AddNoClone(&set, &attr_id, &v, 1, true);
 
 	// perform update
-	UpdateEntityProperties(gc, &ge, set, t, &props_set, &props_removed, false);
-	ASSERT(props_set + props_removed >= 1);  // expecting a single change
+	UpdateEntityProperties(gc, ge, set, t, &props_set, &props_removed, false);
 
 	// clean up
 	AttributeSet_Free(&set);

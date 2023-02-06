@@ -24,6 +24,9 @@ int Graph_Effect
 	GraphContext *gc = GraphContext_Retrieve(ctx, argv[1], false, true);
 	ASSERT(gc != NULL);
 
+	// get graph
+	Graph *g = GraphContext_GetGraph(gc);
+
 	//--------------------------------------------------------------------------
 	// process effects
 	//--------------------------------------------------------------------------
@@ -31,8 +34,14 @@ int Graph_Effect
 	size_t l = 0;  // effects buffer length
 	const char *effects_buff = RedisModule_StringPtrLen(argv[2], &l);
 
+	// lock graph for writing
+	Graph_AcquireWriteLock(g);
+
 	// apply effects
 	Effects_Apply(gc, effects_buff, l);
+
+	// release write lock
+	Graph_ReleaseLock(g);
 
 	// release GraphContext
 	GraphContext_DecreaseRefCount(gc);

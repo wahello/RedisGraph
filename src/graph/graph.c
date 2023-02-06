@@ -1295,7 +1295,7 @@ RG_Matrix Graph_GetLabelMatrix
 	LabelID label_idx
 ) {
 	ASSERT(g != NULL);
-	ASSERT(label_idx < array_len(g->labels));
+	ASSERT(label_idx < Graph_LabelTypeCount(g));
 
 	// return zero matrix if label_idx is out of range
 	if(label_idx < 0) {

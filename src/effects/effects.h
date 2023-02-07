@@ -16,7 +16,8 @@
 // types of effects
 typedef enum {
 	EFFECT_UNKNOWN = 0,    // unknown effect
-	EFFECT_UPDATE,         // entity update
+	EFFECT_UPDATE_NODE,    // node update
+	EFFECT_UPDATE_EDGE,    // edge update
 	EFFECT_CREATE_NODE,    // node creation
 	EFFECT_CREATE_EDGE,    // edge creation
 	EFFECT_DELETE_NODE,    // node deletion

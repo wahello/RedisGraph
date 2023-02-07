@@ -17,7 +17,7 @@ typedef int RelationID;
 // instantiate a new unpopulated edge
 #define GE_NEW_EDGE()                 \
 (Edge) {                              \
-	.entity = NULL,                   \
+	.attributes = NULL,               \
 	.id = INVALID_ENTITY_ID,          \
 	.relationship = NULL,             \
 	.relationID = GRAPH_NO_RELATION,  \

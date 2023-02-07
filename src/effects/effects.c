@@ -323,64 +323,145 @@ static void EffectFromUndoSetRemoveLabels
 }
 
 // convert UndoUpdate into a Update effect
-static void EffectFromUndoUpdate
+static void EffectFromNodeUpdate
 (
-	FILE *stream,     // effects stream
-	const UndoOp *op  // undo operation to convert
+	FILE *stream,           // effects stream
+	const UndoUpdateOp *op  // undo operation to convert
 ) {
 	//--------------------------------------------------------------------------
 	// effect format:
 	//    effect type
-	//    entity type node/edge
 	//    entity ID
 	//    attribute id
 	//    attribute value
 	//--------------------------------------------------------------------------
 	
-	// undo operation
-	const UndoUpdateOp *_op = (const UndoUpdateOp*)op;
-
-	// entity type node/edge
-	GraphEntity *e = (_op->entity_type == GETYPE_NODE) ?
-		(GraphEntity*)&_op->n : (GraphEntity*)&_op->e;
+	// entity type node
+	Node *n = (Node*)&op->n;
 
 	//--------------------------------------------------------------------------
 	// write effect type
 	//--------------------------------------------------------------------------
 
-	EffectType t = EFFECT_UPDATE;
+	EffectType t = EFFECT_UPDATE_NODE;
 	fwrite_assert(&t, sizeof(EffectType), stream); 
-
-	//--------------------------------------------------------------------------
-	// write entity type
-	//--------------------------------------------------------------------------
-
-	fwrite_assert(&_op->entity_type, sizeof(_op->entity_type), stream);
 
 	//--------------------------------------------------------------------------
 	// write entity ID
 	//--------------------------------------------------------------------------
 
-	fwrite_assert(&ENTITY_GET_ID(e), sizeof(EntityID), stream);
+	fwrite_assert(&ENTITY_GET_ID(n), sizeof(EntityID), stream);
 
 	//--------------------------------------------------------------------------
 	// write attribute ID
 	//--------------------------------------------------------------------------
 
 	GraphContext *gc = QueryCtx_GetGraphCtx();
-	fwrite_assert(&_op->attr_id, sizeof(Attribute_ID), stream);
+	fwrite_assert(&op->attr_id, sizeof(Attribute_ID), stream);
 
 	//--------------------------------------------------------------------------
 	// write attribute value
 	//--------------------------------------------------------------------------
 
-	SIValue *v = GraphEntity_GetProperty(e, _op->attr_id);
+	SIValue *v = GraphEntity_GetProperty((GraphEntity*)n, op->attr_id);
 	if(v == ATTRIBUTE_NOTFOUND) {
 		// attribute been deleted
 		*v = SI_NullVal();
 	}
 
 	SIValue_ToBinary(stream, v);
+}
+
+// convert UndoUpdate into a Update effect
+static void EffectFromEdgeUpdate
+(
+	FILE *stream,           // effects stream
+	const UndoUpdateOp *op  // undo operation to convert
+) {
+	//--------------------------------------------------------------------------
+	// effect format:
+	//    effect type
+	//    edge ID
+	//    relation ID
+	//    src ID
+	//    dest ID
+	//    attribute id
+	//    attribute value
+	//--------------------------------------------------------------------------
+
+	GraphContext *gc = QueryCtx_GetGraphCtx();
+	Graph *g = GraphContext_GetGraph(gc);
+
+	// entity type edge
+	Edge *e = (Edge*)&op->e;
+
+	//--------------------------------------------------------------------------
+	// write effect type
+	//--------------------------------------------------------------------------
+
+	EffectType t = EFFECT_UPDATE_EDGE;
+	fwrite_assert(&t, sizeof(EffectType), stream);
+
+	//--------------------------------------------------------------------------
+	// write edge ID
+	//--------------------------------------------------------------------------
+
+	fwrite_assert(&ENTITY_GET_ID(e), sizeof(EntityID), stream);
+
+	//--------------------------------------------------------------------------
+	// write relation ID
+	//--------------------------------------------------------------------------
+
+	RelationID r = EDGE_GET_RELATION_ID(e, g);
+	fwrite_assert(&r, sizeof(RelationID), stream);
+
+	//--------------------------------------------------------------------------
+	// write src ID
+	//--------------------------------------------------------------------------
+
+	NodeID s = Edge_GetSrcNodeID(e);
+	fwrite_assert(&s, sizeof(NodeID), stream);
+
+	//--------------------------------------------------------------------------
+	// write dest ID
+	//--------------------------------------------------------------------------
+
+	NodeID d = Edge_GetDestNodeID(e);
+	fwrite_assert(&d, sizeof(NodeID), stream);
+
+	//--------------------------------------------------------------------------
+	// write attribute ID
+	//--------------------------------------------------------------------------
+
+	fwrite_assert(&op->attr_id, sizeof(Attribute_ID), stream);
+
+	//--------------------------------------------------------------------------
+	// write attribute value
+	//--------------------------------------------------------------------------
+
+	SIValue *v = GraphEntity_GetProperty((GraphEntity*)e, op->attr_id);
+	if(v == ATTRIBUTE_NOTFOUND) {
+		// attribute been deleted
+		*v = SI_NullVal();
+	}
+
+	SIValue_ToBinary(stream, v);
+}
+
+// convert UndoUpdate into a Update effect
+static void EffectFromUndoUpdate
+(
+	FILE *stream,     // effects stream
+	const UndoOp *op  // undo operation to convert
+) {
+	// undo operation
+	const UndoUpdateOp *_op = (const UndoUpdateOp*)op;
+
+	if(_op->entity_type == GETYPE_NODE) {
+		EffectFromNodeUpdate(stream, _op);
+	} else {
+		EffectFromEdgeUpdate(stream, _op);
+	}
 }
 
 // convert undo-operation into an effect

@@ -196,39 +196,80 @@ static size_t ComputeSchemaAddSize
 	return s;
 }
 
+// compute required update-effect size for undo-edge-update operation
+static size_t ComputeEdgeUpdateSize
+(
+	const UndoUpdateOp *op
+) {
+	//--------------------------------------------------------------------------
+	// effect format:
+	//    effect type
+	//    edge ID
+	//    relation ID
+	//    src ID
+	//    dest ID
+	//    attribute id
+	//    attribute value
+	//--------------------------------------------------------------------------
+
+	const Edge *e = &op->e;
+
+	// get updated value
+	SIValue *v = GraphEntity_GetProperty((GraphEntity*)e, op->attr_id);
+
+	// compute effect byte size
+	size_t s = sizeof(EffectType)                +  // effect type
+			   sizeof(EntityID)                  +  // edge ID
+			   sizeof(RelationID)                +  // relation ID
+			   sizeof(NodeID)                    +  // src node ID
+			   sizeof(NodeID)                    +  // dest node ID
+			   sizeof(Attribute_ID)              +  // attribute ID
+			   SIValue_BinarySize(v);               // attribute value
+
+	return s;
+}
+
+// compute required update-effect size for undo-node-update operation
+static size_t ComputeNodeUpdateSize
+(
+	const UndoUpdateOp *op
+) {
+	//--------------------------------------------------------------------------
+	// effect format:
+	//    effect type
+	//    entity ID
+	//    attribute id
+	//    attribute value
+	//--------------------------------------------------------------------------
+
+	const Node *n = &op->n;
+	
+	// get updated value
+	SIValue *v = GraphEntity_GetProperty((GraphEntity*)n, op->attr_id);
+
+	// compute effect byte size
+	size_t s = sizeof(EffectType)                +  // effect type
+			   sizeof(NodeID)                    +  // node ID
+			   sizeof(Attribute_ID)              +  // attribute ID
+			   SIValue_BinarySize(v);               // attribute value
+
+	return s;
+}
+
 // compute required update-effect size for undo-update operation
 static size_t ComputeUpdateSize
 (
 	const UndoOp *op
 ) {
-	//--------------------------------------------------------------------------
-	// effect format:
-	//    effect type
-	//    entity type node/edge
-	//    entity ID
-	//    attribute name
-	//    attribute value
-	//--------------------------------------------------------------------------
-	
 	// undo operation
 	const UndoUpdateOp *_op = (const UndoUpdateOp*)op;
 
 	// entity-type node/edge
-	GraphEntity *e = (_op->entity_type == GETYPE_NODE) ?
-		(GraphEntity*)&_op->n : (GraphEntity*)&_op->e;
-
-	
-	// get updated value
-	SIValue *v = GraphEntity_GetProperty(e, _op->attr_id);
-
-	// compute effect byte size
-	size_t s = sizeof(EffectType)                +  // effect type
-		       fldsiz(UndoUpdateOp, entity_type) +  // entity type
-			   sizeof(EntityID)                  +  // entity ID
-			   sizeof(Attribute_ID)              +  // attribute ID
-			   SIValue_BinarySize(v);               // attribute value
-
-	return s;
+	if(_op->entity_type == GETYPE_NODE) {
+		return ComputeNodeUpdateSize(_op);
+	} else {
+		return ComputeEdgeUpdateSize(_op);
+	}
 }
 
 // compute required effects buffer byte size from undo-log

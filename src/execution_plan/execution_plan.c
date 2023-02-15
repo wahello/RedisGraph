@@ -311,6 +311,7 @@ static ExecutionPlan *_tie_segments
 
 	// The last ExecutionPlan segment is the master ExecutionPlan.
 	ExecutionPlan *plan = segments[segment_count - 1];
+	plan->sub_plan = segments;
 
 	return plan;
 }
@@ -343,9 +344,6 @@ ExecutionPlan *NewExecutionPlan(void) {
 	// the root operation is OpResults only if the query culminates in a RETURN
 	// or CALL clause
 	_implicit_result(plan);
-
-	// clean up
-	array_free(segments);
 
 	return plan;
 }
@@ -510,39 +508,48 @@ static void _ExecutionPlan_FreeInternals(ExecutionPlan *plan) {
 			QueryGraph_Free(plan->connected_components[i]);
 		}
 		array_free(plan->connected_components);
+		plan->connected_components = NULL;
 	}
 
-	QueryGraph_Free(plan->query_graph);
-	if(plan->record_map) raxFree(plan->record_map);
-	if(plan->record_pool) ObjectPool_Free(plan->record_pool);
-	if(plan->ast_segment) AST_Free(plan->ast_segment);
+	if(plan->query_graph) {
+		QueryGraph_Free(plan->query_graph);
+		plan->query_graph = NULL;
+	}
+	if(plan->record_map) {
+		raxFree(plan->record_map);
+		plan->record_map = NULL;
+	}
+	if(plan->record_pool) {
+		ObjectPool_Free(plan->record_pool);
+		plan->record_map = NULL;
+	}
+	if(plan->ast_segment) {
+		AST_Free(plan->ast_segment);
+		plan->ast_segment = NULL;
+	}
+	if(plan->sub_plan) {
+		uint count = array_len(plan->sub_plan);
+		for(uint i = 0; i < count; i++) {
+			_ExecutionPlan_FreeInternals(plan->sub_plan[i]);
+		}
+		plan->sub_plan = NULL;
+	}
 	rm_free(plan);
 }
 
 // Free an op tree and its associated ExecutionPlan segments.
-static ExecutionPlan *_ExecutionPlan_FreeOpTree(OpBase *op) {
-	if(op == NULL) return NULL;
+static void _ExecutionPlan_FreeOpTree(OpBase *op) {
+	if(op == NULL) return;
 	ExecutionPlan *child_plan = NULL;
 	ExecutionPlan *prev_child_plan = NULL;
 	// Store a reference to the current plan.
 	ExecutionPlan *current_plan = (ExecutionPlan *)op->plan;
 	for(uint i = 0; i < op->childCount; i ++) {
-		child_plan = _ExecutionPlan_FreeOpTree(op->children[i]);
-		// In most cases all children will share the same plan, but if they don't
-		// (for an operation like UNION) then free the now-obsolete previous child plan.
-		if(prev_child_plan != child_plan) {
-			_ExecutionPlan_FreeInternals(prev_child_plan);
-			prev_child_plan = child_plan;
-		}
+		_ExecutionPlan_FreeOpTree(op->children[i]);
 	}
 
 	// Free this op.
 	OpBase_Free(op);
-
-	// Free each ExecutionPlan segment once all ops associated with it have been freed.
-	if(current_plan != child_plan) _ExecutionPlan_FreeInternals(child_plan);
-
-	return current_plan;
 }
 
 void ExecutionPlan_Free(ExecutionPlan *plan) {
@@ -554,4 +561,3 @@ void ExecutionPlan_Free(ExecutionPlan *plan) {
 	// Free the final ExecutionPlan segment.
 	_ExecutionPlan_FreeInternals(plan);
 }
-

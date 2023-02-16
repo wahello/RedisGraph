@@ -311,7 +311,6 @@ static ExecutionPlan *_tie_segments
 
 	// The last ExecutionPlan segment is the master ExecutionPlan.
 	ExecutionPlan *plan = segments[segment_count - 1];
-	plan->sub_plan = segments;
 
 	return plan;
 }
@@ -344,6 +343,9 @@ ExecutionPlan *NewExecutionPlan(void) {
 	// the root operation is OpResults only if the query culminates in a RETURN
 	// or CALL clause
 	_implicit_result(plan);
+
+	// clean up
+	array_free(segments);
 
 	return plan;
 }
@@ -527,23 +529,13 @@ static void _ExecutionPlan_FreeInternals(ExecutionPlan *plan) {
 		AST_Free(plan->ast_segment);
 		plan->ast_segment = NULL;
 	}
-	if(plan->sub_plan) {
-		uint count = array_len(plan->sub_plan);
-		for(uint i = 0; i < count; i++) {
-			_ExecutionPlan_FreeInternals(plan->sub_plan[i]);
-		}
-		plan->sub_plan = NULL;
-	}
 	rm_free(plan);
 }
 
 // Free an op tree and its associated ExecutionPlan segments.
 static void _ExecutionPlan_FreeOpTree(OpBase *op) {
 	if(op == NULL) return;
-	ExecutionPlan *child_plan = NULL;
-	ExecutionPlan *prev_child_plan = NULL;
-	// Store a reference to the current plan.
-	ExecutionPlan *current_plan = (ExecutionPlan *)op->plan;
+
 	for(uint i = 0; i < op->childCount; i ++) {
 		_ExecutionPlan_FreeOpTree(op->children[i]);
 	}
@@ -552,12 +544,59 @@ static void _ExecutionPlan_FreeOpTree(OpBase *op) {
 	OpBase_Free(op);
 }
 
+static void _ExecutionPlan_AggregatePlansFromOps
+(
+	OpBase *opBase,        // operation to aggregate plans from
+	ExecutionPlan **plans  // plans array to append plans to
+) {
+	// do not aggregate the plan if it is the last one we aggregated (save time)
+	uint len = array_len(plans);
+	if(len > 0 && plans[len-1] != opBase->plan) {
+		array_append(plans, (ExecutionPlan *)opBase->plan);
+	}
+
+	for(uint i = 0; i < opBase->childCount; i++) {
+		_ExecutionPlan_AggregatePlansFromOps(opBase->children[i], plans);
+	}
+}
+
+int cmp_exec_plan
+(
+	const void *p1,
+	const void *p2
+) {
+	return p1 - p2;
+}
+
 void ExecutionPlan_Free(ExecutionPlan *plan) {
 	if(plan == NULL) return;
 
-	// Free all ops and ExecutionPlan segments.
-	_ExecutionPlan_FreeOpTree(plan->root);
+	// traverse the execution-plan graph (DAG -> no endless cycles), while
+	// aggregating the different execution-plans
+	ExecutionPlan **plans = array_new(ExecutionPlan *, 1);
+	_ExecutionPlan_AggregatePlansFromOps(plan->root, plans);
 
-	// Free the final ExecutionPlan segment.
-	_ExecutionPlan_FreeInternals(plan);
+	// remove duplicates
+	ExecutionPlan **distinct_plans;
+	uint plan_count = array_len(plans);
+	qsort(plans, plan_count, sizeof(ExecutionPlan *), cmp_exec_plan);
+
+	for(uint i = 0; i < plan_count; i++) {
+		while(i < plan_count - 1 &&
+			  plans[i] == plans[i+1]) {
+			i++;
+		}
+
+		ExecutionPlan *plan = plans[i];
+
+		array_append(distinct_plans, plan);
+	}
+	array_free(plans);
+
+	// Free the different op-trees
+	uint distinct_plan_count = array_len(distinct_plans);
+	for(uint i = 0; i < distinct_plan_count; i++) {
+		_ExecutionPlan_FreeOpTree(distinct_plans[i]->root);
+		_ExecutionPlan_FreeInternals(plan);
+	}
 }
